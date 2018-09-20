@@ -70,9 +70,8 @@ class Tab(object):
         ### CHANGE ###
         # Create multiple handle_event_loops
 
-        NUM_WORKERS = 3
         self._handle_event_threads = []
-        for i in range(NUM_WORKERS):
+        for i in range(self.num_workers):
             new_worker = threading.Thread(target=self._handle_event_loop)
             new_worker.daemon = True
             self._handle_event_threads.append(new_worker)
@@ -232,6 +231,7 @@ class Tab(object):
         self._stopped.set()
         if self._ws:
             self._ws.close()
+            self._ws.wait_closed()
         return True
 
     def wait(self, timeout=None):
