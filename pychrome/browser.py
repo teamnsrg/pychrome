@@ -14,7 +14,7 @@ __all__ = ["Browser"]
 class Browser(object):
     _all_tabs = {}
 
-    def __init__(self, url="http://127.0.0.1:9222"):
+    def __init__(self, url="http://127.0.0.1:9222", num_workers=1):
         self.dev_url = url
 
         if self.dev_url not in self._all_tabs:
@@ -22,10 +22,12 @@ class Browser(object):
         else:
             self._tabs = self._all_tabs[self.dev_url]
 
+        self.num_workers = num_workers
+
     def new_tab(self, url=None, timeout=None):
         url = url or ''
         rp = requests.get("%s/json/new?%s" % (self.dev_url, url), json=True, timeout=timeout)
-        tab = Tab(**rp.json())
+        tab = Tab(self.num_workers, **rp.json())
         self._tabs[tab.id] = tab
         return tab
 

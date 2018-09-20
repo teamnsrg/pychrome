@@ -9,6 +9,7 @@ import logging
 import warnings
 import threading
 import functools
+import threading
 
 import websocket
 
@@ -49,10 +50,12 @@ class Tab(object):
     status_started = 'started'
     status_stopped = 'stopped'
 
-    def __init__(self, **kwargs):
+    def __init__(self, num_workers=1, **kwargs):
         self.id = kwargs.get("id")
         self.type = kwargs.get("type")
         self.debug = os.getenv("DEBUG", False)
+
+        self.num_workers = num_workers
 
         self._websocket_url = kwargs.get("webSocketDebuggerUrl")
         self._kwargs = kwargs
@@ -63,8 +66,16 @@ class Tab(object):
 
         self._recv_th = threading.Thread(target=self._recv_loop)
         self._recv_th.daemon = True
-        self._handle_event_th = threading.Thread(target=self._handle_event_loop)
-        self._handle_event_th.daemon = True
+
+        ### CHANGE ###
+        # Create multiple handle_event_loops
+
+        NUM_WORKERS = 3
+        self._handle_event_threads = []
+        for i in range(NUM_WORKERS):
+            new_worker = threading.Thread(target=self._handle_event_loop)
+            new_worker.daemon = True
+            self._handle_event_threads.append(new_worker)
 
         self._stopped = threading.Event()
         self._started = False
@@ -173,7 +184,6 @@ class Tab(object):
         timeout = kwargs.pop("_timeout", None)
         result = self._send({"method": _method, "params": kwargs}, timeout=timeout)
         if 'result' not in result and 'error' in result:
-            #warnings.warn("%s error: %s" % (_method, result['error']['message']))
             raise CallMethodException("calling method: %s error: %s" % (_method, result['error']['message']))
 
         return result['result']
@@ -207,7 +217,8 @@ class Tab(object):
         self._stopped.clear()
         self._ws = websocket.create_connection(self._websocket_url, enable_multithread=True)
         self._recv_th.start()
-        self._handle_event_th.start()
+        for t in self._handle_event_threads:
+            t.start()
         return True
 
     def stop(self):
@@ -231,7 +242,8 @@ class Tab(object):
             return self._stopped.wait(timeout)
 
         self._recv_th.join()
-        self._handle_event_th.join()
+        for t in self._handle_event_threads:
+            t.join()
         return True
 
     def __str__(self):
