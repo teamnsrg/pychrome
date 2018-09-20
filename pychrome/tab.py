@@ -173,7 +173,7 @@ class Tab(object):
         timeout = kwargs.pop("_timeout", None)
         result = self._send({"method": _method, "params": kwargs}, timeout=timeout)
         if 'result' not in result and 'error' in result:
-            warnings.warn("%s error: %s" % (_method, result['error']['message']))
+            #warnings.warn("%s error: %s" % (_method, result['error']['message']))
             raise CallMethodException("calling method: %s error: %s" % (_method, result['error']['message']))
 
         return result['result']
